@@ -1,0 +1,391 @@
+Google Street View provides panoramic 360 degree views from designated roads throughout its coverage area. Street View's API coverage is the same as that for the Google Maps application (https://maps.google.com/). The list of currently supported cities for Street View is available at the Google Maps website.
+
+Note: Street View imagery comes from two sources: Google (non-public developer-controlled imagery), and the public (UGC, or public user-generated content). Note that there is no way to use only one source of Street View imagery over the other. Learn more about our Street view imagery privacy policy.
+
+Street View Map Usage
+Although Street View can be used within a standalone DOM element, it is most useful when indicating a location on a map. By default, Street View is enabled on a map, and a Street View Pegman control appears integrated within the navigation (zoom and pan) controls. You may hide this control within the map's MapOptions by setting streetViewControl to false. You may also change the default position of the Street View control by setting the Map's streetViewControlOptions.position property to a new ControlPosition.
+
+The Street View Pegman control allows you to view Street View panoramas directly within the map. When the user clicks and holds the Pegman, the map updates to show blue outlines around Street View-enabled streets, offering a user experience similar to the Google Maps app.
+
+When the user drops the Pegman marker onto a street, the map updates to display a Street View panorama of the indicated location.
+
+Note: Only Street View panoramas generated with the StreetViewPanorama object are billed. The built-in Street View experience based on the Street View Pegman control, and the StreetViewService, are not billed. For more information, see Pricing.
+
+Street View images are supported through use of the StreetViewPanorama object, which provides an API interface to a Street View "viewer." Each map contains a default Street View panorama, which you can retrieve by calling the map's getStreetView() method. When you add a Street View control to the map by setting its streetViewControl option to true, you automatically connect the Pegman control to this default Street View panorama.
+
+You may also create your own StreetViewPanorama object and set the map to use that instead of the default, by setting the map's streetView property explicitly to that constructed object. You may wish to override the default panorama if you want to modify default behavior, such as the automatic sharing of overlays between the map and the panorama. (See Overlays within Street View below.)
+
+Street View Containers
+You may instead wish to display a StreetViewPanorama within a separate DOM element, often a <div> element. Simply pass the DOM element within the StreetViewPanorama's constructor. For optimum display of images, we recommend a minimum size of 200 pixels by 200 pixels.
+
+Note: Although Street View functionality is designed to be used in conjunction with a map, this usage is not required. You may use a standalone Street View object without a map.
+
+Street View Locations and Point-of-View (POV)
+The StreetViewPanorama constructor also allows you to set the Street View location and point of view using the StreetViewOptions parameter. You may call setPosition() and setPov() on the object after construction to change its location and POV.
+
+The Street View location defines the placement of the camera focus for an image, but it does not define the orientation of the camera for that image. For that purpose, the StreetViewPov object defines two properties:
+
+heading (default 0) defines the rotation angle around the camera locus in degrees relative from true north. Headings are measured clockwise (90 degrees is true east).
+pitch (default 0) defines the angle variance "up" or "down" from the camera's initial default pitch, which is often (but not always) flat horizontal. (For example, an image taken on a hill will likely exhibit a default pitch that is not horizontal.) Pitch angles are measured with positive values looking up (to +90 degrees straight up and orthogonal to the default pitch) and negative values looking down (to -90 degrees straight down and orthogonal to the default pitch).
+The StreetViewPov object is most often used to determine the point of view of the Street View camera. You can also determine the point-of-view of the photographer — typically the direction the car or trike was facing — with the StreetViewPanorama.getPhotographerPov() method.
+
+The following code displays a map of Boston with an initial view of Fenway Park. Selecting the Pegman and dragging it to a supported location on the map will change the Street View panorama:
+
+```typescript
+function initialize() {
+  const fenway = { lat: 42.345573, lng: -71.098326 };
+  const map = new google.maps.Map(
+    document.getElementById("map") as HTMLElement,
+    {
+      center: fenway,
+      zoom: 14,
+    }
+  );
+  const panorama = new google.maps.StreetViewPanorama(
+    document.getElementById("pano") as HTMLElement,
+    {
+      position: fenway,
+      pov: {
+        heading: 34,
+        pitch: 10,
+      },
+    }
+  );
+
+  map.setStreetView(panorama);
+}
+
+declare global {
+  interface Window {
+    initialize: () => void;
+  }
+}
+window.initialize = initialize;
+```
+
+Overlays within Street View
+The default StreetViewPanorama object supports the native display of map overlays. Overlays generally appear at "street level" anchored at LatLng positions. (Markers will appear with their tails anchored to the location's horizontal plane within the Street View panorama for example.)
+
+Currently, the types of overlays which are supported on Street View panoramas are limited to Markers, InfoWindows and custom OverlayViews. Overlays which you display on a map may be displayed on a Street View panorama by treating the panorama as a substitute for the Map object, calling setMap() and passing the StreetViewPanorama as an argument instead of a map. Info windows similarly may be opened within a Street View panorama by calling open(), passing the StreetViewPanorama() instead of a map.
+
+Additionally, when creating a map with a default StreetViewPanorama, any markers created on a map are shared automatically with the map's associated Street View panorama, provided that panorama is visible. To retrieve the default Street View panorama, call getStreetView() on the Map object. Note that if you explicitly set the map's streetView property to a StreetViewPanorama of your own construction, you will override the default panorama.
+
+The following example shows markers denoting various locations around Astor Place, New York City. Toggle the display to Street View to show the shared markers displaying within the StreetViewPanorama.
+
+```typescript
+let panorama: google.maps.StreetViewPanorama;
+
+function initMap(): void {
+  const astorPlace = { lat: 40.729884, lng: -73.990988 };
+
+  // Set up the map
+  const map = new google.maps.Map(
+    document.getElementById("map") as HTMLElement,
+    {
+      center: astorPlace,
+      zoom: 18,
+      streetViewControl: false,
+    }
+  );
+
+  document
+    .getElementById("toggle")!
+    .addEventListener("click", toggleStreetView);
+
+  const cafeIcon = document.createElement("img");
+  cafeIcon.src = "https://developers.google.com/maps/documentation/javascript/examples/full/images/cafe_icon.svg";
+
+  const dollarIcon = document.createElement("img");
+  dollarIcon.src = "https://developers.google.com/maps/documentation/javascript/examples/full/images/bank_icon.svg";
+
+  const busIcon = document.createElement("img");
+  busIcon.src = "https://developers.google.com/maps/documentation/javascript/examples/full/images/bus_icon.svg";
+
+
+  // Set up the markers on the map
+  const cafeMarker = new google.maps.Marker({
+    position: { lat: 40.730031, lng: -73.991428 },
+    map,
+    title: "Cafe",
+    icon: cafeIcon.src,
+  });
+
+  const bankMarker = new google.maps.Marker({
+    position: { lat: 40.729681, lng: -73.991138 },
+    map,
+    title: "Bank",
+    icon: dollarIcon.src,
+  });
+
+  const busMarker = new google.maps.Marker({
+    position: { lat: 40.729559, lng: -73.990741 },
+    map,
+    title: "Bus Stop",
+    icon: busIcon.src,
+  });
+
+  // We get the map's default panorama and set up some defaults.
+  // Note that we don't yet set it visible.
+  panorama = map.getStreetView()!; // TODO fix type
+  panorama.setPosition(astorPlace);
+  panorama.setPov(
+    /** @type {google.maps.StreetViewPov} */ {
+      heading: 265,
+      pitch: 0,
+    }
+  );
+}
+
+function toggleStreetView(): void {
+  const toggle = panorama.getVisible();
+
+  if (toggle == false) {
+    panorama.setVisible(true);
+  } else {
+    panorama.setVisible(false);
+  }
+}
+
+declare global {
+  interface Window {
+    initMap: () => void;
+  }
+}
+window.initMap = initMap;
+```
+
+Street View Events
+When navigating between Street View or manipulating its orientation, you may wish to monitor several events that indicate changes to the StreetViewPanorama's state:
+
+pano_changed fires whenever the individual pano ID changes. This event does not guarantee that any associated data within the panorama (such as the links) has also changed by the time this event is triggered; this event only indicates that a pano ID has changed. Note that the pano ID (which you can use to reference this panorama) is only stable within the current browser session.
+position_changed fires whenever the underlying (LatLng) position of the panorama changes. Rotating a panorama will not trigger this event. Note that you could change a panorama's underlying position without changing the associated pano ID, since the API will automatically associate the nearest pano ID to the panorama's position.
+pov_changed fires whenever the Street View's StreetViewPov changes. Note that this event may fire while the position, and pano ID, remain stable.
+links_changed fires whenever the Street View's links change. Note that this event may fire asynchronously after a change in the pano ID indicated through pano_changed.
+visible_changed fires whenever the Street View's visibility changes. Note that this event may fire asynchronously after a change in the pano ID indicated through pano_changed.
+The following code illustrates how these events can be handled to collect data about the underlying StreetViewPanorama:
+
+```typescript
+function initPano() {
+  const panorama = new google.maps.StreetViewPanorama(
+    document.getElementById("pano") as HTMLElement,
+    {
+      position: { lat: 37.869, lng: -122.255 },
+      pov: {
+        heading: 270,
+        pitch: 0,
+      },
+      visible: true,
+    }
+  );
+
+  panorama.addListener("pano_changed", () => {
+    const panoCell = document.getElementById("pano-cell") as HTMLElement;
+
+    panoCell.innerHTML = panorama.getPano();
+  });
+
+  panorama.addListener("links_changed", () => {
+    const linksTable = document.getElementById("links_table") as HTMLElement;
+
+    while (linksTable.hasChildNodes()) {
+      linksTable.removeChild(linksTable.lastChild as ChildNode);
+    }
+
+    const links = panorama.getLinks();
+
+    for (const i in links) {
+      const row = document.createElement("tr");
+
+      linksTable.appendChild(row);
+
+      const labelCell = document.createElement("td");
+
+      labelCell.innerHTML = "<b>Link: " + i + "</b>";
+
+      const valueCell = document.createElement("td");
+
+      valueCell.innerHTML = links[i].description as string;
+      linksTable.appendChild(labelCell);
+      linksTable.appendChild(valueCell);
+    }
+  });
+
+  panorama.addListener("position_changed", () => {
+    const positionCell = document.getElementById(
+      "position-cell"
+    ) as HTMLElement;
+
+    (positionCell.firstChild as HTMLElement).nodeValue =
+      panorama.getPosition() + "";
+  });
+
+  panorama.addListener("pov_changed", () => {
+    const headingCell = document.getElementById("heading-cell") as HTMLElement;
+    const pitchCell = document.getElementById("pitch-cell") as HTMLElement;
+
+    (headingCell.firstChild as HTMLElement).nodeValue =
+      panorama.getPov().heading + "";
+    (pitchCell.firstChild as HTMLElement).nodeValue =
+      panorama.getPov().pitch + "";
+  });
+}
+
+declare global {
+  interface Window {
+    initPano: () => void;
+  }
+}
+window.initPano = initPano;
+```
+
+Street View Controls
+When displaying a StreetViewPanorama, a variety of controls appear on the panorama by default. You can enable or disable these controls by setting their appropriate fields within the StreetViewPanoramaOptions to true or false:
+
+A panControl provides a way to rotate the panorama. This control appears by default as a standard integrated compass and pan control. You may alter the control's position by providing PanControlOptions within the panControlOptions field.
+A zoomControl provides a way to zoom within the image. This control appears by default near the bottom right of the panorama. You can alter the control's appearance by providing ZoomControlOptions within the zoomControlOptions field.
+An addressControl provides a textual overlay indicating the address of the associated location, and offers a link to open the location in Google Maps. You can alter the control's appearance by providing StreetViewAddressControlOptions within the addressControlOptions field.
+A fullscreenControl offers the option to open Street View in fullscreen mode. You can alter the control's appearance by providing FullscreenControlOptions within the fullscreenControlOptions field.
+A motionTrackingControl offers the option to enable or disable motion tracking on mobile devices. This control appears only on devices that support device orientation events. By default, the control appears near the bottom right of the panorama. You can alter the control's position by providing MotionTrackingControlOptions. For more information, see the section on motion tracking.
+A linksControl provides guide arrows on the image for traveling to adjacent panorama images.
+A Close control allows the user to close the Street View viewer. You can enable or disable the Close control by setting enableCloseButton to true or false.
+The following example alters the controls displayed within the associated Street View and removes the view's links:
+
+```typescript
+function initPano() {
+  // Note: constructed panorama objects have visible: true
+  // set by default.
+  const panorama = new google.maps.StreetViewPanorama(
+    document.getElementById("map") as HTMLElement,
+    {
+      position: { lat: 42.345573, lng: -71.098326 },
+      addressControlOptions: {
+        position: google.maps.ControlPosition.BOTTOM_CENTER,
+      },
+      linksControl: false,
+      panControl: false,
+      enableCloseButton: false,
+    }
+  );
+}
+
+declare global {
+  interface Window {
+    initPano: () => void;
+  }
+}
+window.initPano = initPano;
+```
+
+A StreetViewPanoramaData object specification contains meta-data about a Street View panorama of the following form:
+
+```json
+{
+  "location": {
+    "latLng": LatLng,
+    "description": string,
+    "pano": string
+  },
+  "copyright": string,
+  "links": [{
+      "heading": number,
+      "description": string,
+      "pano": string,
+      "roadColor": string,
+      "roadOpacity": number
+    }],
+  "tiles": {
+    "worldSize": Size,
+    "tileSize": Size,
+    "centerHeading": number
+  }
+}
+```
+
+Note that this data object is not a StreetViewPanorama object itself. To create a Street View object using this data, you would need to create a StreetViewPanorama and call setPano(), passing it the ID as noted in the returned location.pano field.
+
+The status code may return one of the following values:
+
+OK indicates that the service found a matching panorama.
+ZERO_RESULTS indicates that the service could not find a matching panorama with the passed criteria.
+UNKNOWN_ERROR indicates that a Street View request could not be processed, though the exact reason is unknown.
+The following code creates a StreetViewService that responds to user clicks on a map by creating markers which, when clicked, display a StreetViewPanorama of that location. The code uses the contents of StreetViewPanoramaData returned from the service.
+
+```typescript
+/*
+ * Click the map to set a new location for the Street View camera.
+ */
+
+let map: google.maps.Map;
+
+let panorama: google.maps.StreetViewPanorama;
+
+function initMap(): void {
+  const berkeley = { lat: 37.869085, lng: -122.254775 };
+  const sv = new google.maps.StreetViewService();
+
+  panorama = new google.maps.StreetViewPanorama(
+    document.getElementById("pano") as HTMLElement
+  );
+
+  // Set up the map.
+  map = new google.maps.Map(document.getElementById("map") as HTMLElement, {
+    center: berkeley,
+    zoom: 16,
+    streetViewControl: false,
+  });
+
+  // Set the initial Street View camera to the center of the map
+  sv.getPanorama({ location: berkeley, radius: 50 }).then(processSVData);
+
+  // Look for a nearby Street View panorama when the map is clicked.
+  // getPanorama will return the nearest pano when the given
+  // radius is 50 meters or less.
+  map.addListener("click", (event) => {
+    sv.getPanorama({ location: event.latLng, radius: 50 })
+      .then(processSVData)
+      .catch((e) =>
+        console.error("Street View data not found for this location.")
+      );
+  });
+}
+
+function processSVData({ data }: google.maps.StreetViewResponse) {
+  const location = data.location!;
+
+  const marker = new google.maps.Marker({
+    position: location.latLng,
+    map,
+    title: location.description,
+  });
+
+  panorama.setPano(location.pano as string);
+  panorama.setPov({
+    heading: 270,
+    pitch: 0,
+  });
+  panorama.setVisible(true);
+
+  marker.addListener("click", () => {
+    const markerPanoID = location.pano;
+
+    // Set the Pano to use the passed panoID.
+    panorama.setPano(markerPanoID as string);
+    panorama.setPov({
+      heading: 270,
+      pitch: 0,
+    });
+    panorama.setVisible(true);
+  });
+}
+
+declare global {
+  interface Window {
+    initMap: () => void;
+  }
+}
+window.initMap = initMap;
+```
+
+
+
+

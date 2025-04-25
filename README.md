@@ -8,6 +8,10 @@ This is just an easy example to see how to use [Google Street View API](https://
 ## Demo Image
 ![Demo Image](public/demo.png)
 
+## Demo Website
+- this is just a test for me to learn, so the UI is quite horrible
+- [Demo - Vercel](https://taiwan-exploree.vercel.app/)
+
 ## Setup
 
 Make sure to install dependencies:
